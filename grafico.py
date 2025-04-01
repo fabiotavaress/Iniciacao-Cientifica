@@ -95,7 +95,7 @@ for setor in circos.sectors:
     scatter_track = setor.add_track((0, 50))
     scatter_track.axis(fc="none", ls="solid", lw=1, ec="grey", alpha=0.3)
     
-    # Trilha 2: Coordenadas Paralelas (coordenadas originais como pontos), raio 50 a 100
+    # Trilha 2: Coordenadas Paralelas (coordenadas originais como linhas), raio 50 a 100
     parallel_track = setor.add_track((50, 100))
     parallel_track.axis(fc="none", ls="solid", lw=1, ec="grey", alpha=0.3)
     
@@ -130,14 +130,13 @@ for idx in valid_indices:
     scatter_track.scatter([x_scaled], [y_scaled], s=50, color='blue', edgecolor='white',
                           linewidth=0.8, alpha=0.7, zorder=10)
     
-    # Dados para a trilha de coordenadas paralelas (como pontos)
+    # Dados para a trilha de coordenadas paralelas (como linhas)
     coords = points[idx]  # Coordenadas originais do ponto
     x_vals = np.linspace(parallel_track.start, parallel_track.end, num_dims)  # Divide o setor em num_dims partes
     y_vals = (coords / max_coord) * 50  # Normaliza para o raio 50-100 (escala 0-50 a partir de 50)
     
-    # Plota na trilha de coordenadas paralelas como pontos
-    parallel_track.scatter(x_vals, y_vals, s=50, color='red', edgecolor='white',
-                           linewidth=0.8, alpha=0.7, zorder=10)
+    # Plota na trilha de coordenadas paralelas como linhas
+    parallel_track.line(x_vals, y_vals, color='red', linewidth=1.5, alpha=0.7, zorder=10)
 
 # g) Renderiza o gráfico
 fig = circos.plotfig()
