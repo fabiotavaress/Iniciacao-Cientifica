@@ -6,11 +6,13 @@ from pycirclize import Circos
 # ===============================
 # 1) Processamento dos pontos
 # ===============================
+# Lê os dados do arquivo CSV
 data = pd.read_csv("wfg4_dwu-dec.csv", header=None)
 points = data.values  # Cada linha é um ponto; as colunas representam as dimensões
 
 num_points, num_dims = points.shape
 
+# Inicializa a matriz de resultados com norma e ângulos
 result_matrix = np.zeros((num_points, num_dims + 1))
 
 for i in range(num_points):
@@ -58,23 +60,14 @@ print("\nContagem de pontos por setor:")
 for setor, count in setor_counts.items():
     print(f"{setor}: {count} pontos")
 
-# Exibe a matriz de classificação detalhada (opcional)
-print("\nMatriz de Classificação Detalhada:")
-for i in range(num_points):
-    print(f"Ponto {i + 1}:")
-    idx_menor = classification_matrix[i, 0]
-    if idx_menor == -1:
-        print("  Ponto nulo (norma = 0.0000)")
-    else:
-        print(f"  Índice do menor ângulo: {int(idx_menor)}")
-        print(f"  Menor ângulo (rad): {classification_matrix[i, 1]:.4f}")
-        print(f"  Norma: {classification_matrix[i, 2]:.4f}")
-    print("-" * 60)
+# Verifica quantos pontos têm norma zero
+num_invalid_points = np.sum(classification_matrix[:, 0] == -1)
+print(f"\nNúmero de pontos com norma zero (não plotados): {num_invalid_points}")
 
 # ===============================
 # 3) Criação do gráfico Circos
 # ===============================
-# a) Define os setores dinamicamente, começando de "Setor 1"
+# a) Define os setores dinamicamente
 setores_dict = {f"Setor {i+1}": 1 for i in range(num_dims)}
 
 # b) Inicializa o Circos para cobrir de 0 a 360 graus
@@ -83,7 +76,6 @@ circos = Circos(setores_dict, space=2, start=0, end=360)
 # c) Determinar valores máximos para normalização
 max_norm = np.nanmax(result_matrix[:, 0]) or 1  # Maior norma
 max_coord = np.nanmax(points) or 1  # Maior coordenada dos dados
-max_angle = np.pi  # Máximo ângulo possível (180 graus em radianos)
 
 # d) Configura os setores e adiciona duas trilhas
 tracks_dict = {}
@@ -91,54 +83,87 @@ for setor in circos.sectors:
     setor.axis(fc="none", ls="dashdot", lw=2, ec="black", alpha=0.5)
     setor.text(f"{setor.name}", size=12)
     
-    # Trilha 1: Dispersão (ângulo x norma), raio 0 a 50
-    scatter_track = setor.add_track((0, 50))
-    scatter_track.axis(fc="none", ls="solid", lw=1, ec="grey", alpha=0.3)
-    
-    # Trilha 2: Coordenadas Paralelas (coordenadas originais como linhas), raio 50 a 100
-    parallel_track = setor.add_track((50, 100))
+    # Trilha 1: Coordenadas Paralelas (linhas), raio 0 a 50
+    parallel_track = setor.add_track((0, 50))
     parallel_track.axis(fc="none", ls="solid", lw=1, ec="grey", alpha=0.3)
     
+    # Trilha 2: Dispersão (pontos), raio 50 a 100
+    scatter_track = setor.add_track((50, 100))
+    scatter_track.axis(fc="none", ls="solid", lw=1, ec="grey", alpha=0.3)
+    
     # Armazena as trilhas no dicionário
-    tracks_dict[setor.name] = {'scatter': scatter_track, 'parallel': parallel_track}
+    tracks_dict[setor.name] = {'parallel': parallel_track, 'scatter': scatter_track}
 
 # e) Cria uma lista com os nomes dos setores em ordem
 nomes_setores = [f"Setor {i+1}" for i in range(num_dims)]
 
-# f) Posiciona os pontos nas trilhas
-valid_mask = classification_matrix[:, 0] >= 0  # Filtra pontos válidos (norma != 0)
-valid_indices = np.where(valid_mask)[0]  # Índices dos pontos válidos
+# f) Filtra pontos válidos (norma != 0)
+valid_mask = classification_matrix[:, 0] >= 0
+valid_indices = np.where(valid_mask)[0]
 
+# g) Coleta os pontos por setor
+points_by_setor = {setor: [] for setor in nomes_setores}
 for idx in valid_indices:
     ponto = classification_matrix[idx]
-    setor_index = int(ponto[0])  # Índice do setor (0 a num_dims-1)
-    setor_name = nomes_setores[setor_index]  # Ajusta para "Setor 1" a "Setor num_dims"
-    
-    # Acessa as trilhas do setor
-    scatter_track = tracks_dict[setor_name]['scatter']
-    parallel_track = tracks_dict[setor_name]['parallel']
-    
-    # Dados para a trilha de dispersão
-    min_angle = ponto[1]  # Menor ângulo (x)
-    norm = ponto[2]       # Norma (y)
-    
-    # Normaliza os valores para o intervalo do setor (0 a 50 para dispersão)
-    x_scaled = (min_angle / max_angle) * (scatter_track.end - scatter_track.start) + scatter_track.start
-    y_scaled = (norm / max_norm) * 50  # Escala para o raio 0-50
-    
-    # Plota na trilha de dispersão
-    scatter_track.scatter([x_scaled], [y_scaled], s=50, color='blue', edgecolor='white',
-                          linewidth=0.8, alpha=0.7, zorder=10)
-    
-    # Dados para a trilha de coordenadas paralelas (como linhas)
-    coords = points[idx]  # Coordenadas originais do ponto
-    x_vals = np.linspace(parallel_track.start, parallel_track.end, num_dims)  # Divide o setor em num_dims partes
-    y_vals = (coords / max_coord) * 50  # Normaliza para o raio 50-100 (escala 0-50 a partir de 50)
-    
-    # Plota na trilha de coordenadas paralelas como linhas
-    parallel_track.line(x_vals, y_vals, color='red', linewidth=1.5, alpha=0.7, zorder=10)
+    setor_index = int(ponto[0])
+    setor_name = nomes_setores[setor_index]
+    points_by_setor[setor_name].append(idx)
 
-# g) Renderiza o gráfico
+# h) Plota os pontos nas trilhas, espalhando-os adequadamente na trilha de dispersão
+points_plotted = 0
+
+for setor_name, indices in points_by_setor.items():
+    if not indices:
+        continue  # Pula setores sem pontos
+    
+    # Ordena os pontos pela norma
+    norms = classification_matrix[indices, 2]
+    sorted_indices = [idx for _, idx in sorted(zip(norms, indices))]
+    num_points_in_setor = len(sorted_indices)
+    
+    # Obtém os limites do setor
+    scatter_track = tracks_dict[setor_name]['scatter']
+    setor_start = scatter_track.start
+    setor_end = scatter_track.end
+    setor_width = setor_end - setor_start
+    
+    # Adiciona um pequeno deslocamento para evitar que os pontos fiquem exatamente nas bordas
+    padding = setor_width * 0.1  # 10% de padding em cada lado
+    adjusted_start = setor_start + padding
+    adjusted_end = setor_end - padding
+    adjusted_width = adjusted_end - adjusted_start
+    
+    # Calcula posições x e y para os pontos
+    for i, idx in enumerate(sorted_indices):
+        ponto = classification_matrix[idx]
+        norm = ponto[2]
+        
+        # Posição x: distribui os pontos ao longo da largura ajustada do setor
+        if num_points_in_setor > 1:
+            x_pos = adjusted_start + (i / (num_points_in_setor - 1)) * adjusted_width
+        else:
+            x_pos = adjusted_start + adjusted_width / 2  # Centraliza se for único ponto
+        
+        # Posição y: varia entre 50 e 100 com base na norma, com padding para evitar bordas
+        y_min, y_max = 55, 95  # Adiciona padding no eixo y (5 unidades de cada lado)
+        y_pos = y_min + (norm / max_norm) * (y_max - y_min)  # Normaliza para o intervalo ajustado
+        
+        # Plota na trilha de dispersão
+        scatter_track.scatter([x_pos], [y_pos], s=20, color='blue', edgecolor='white',
+                              linewidth=0.5, alpha=0.7, zorder=10)
+        points_plotted += 1
+        
+        # Plota na trilha de coordenadas paralelas
+        parallel_track = tracks_dict[setor_name]['parallel']
+        coords = points[idx]
+        x_vals = np.linspace(parallel_track.start, parallel_track.end, num_dims)
+        y_vals = (coords / max_coord) * 50  # Normaliza para o raio 0 a 50
+        parallel_track.line(x_vals, y_vals, color='red', linewidth=1.5, alpha=0.7, zorder=10)
+
+# Debug: quantos pontos foram plotados
+print(f"\nTotal de pontos plotados na trilha de dispersão: {points_plotted}")
+
+# i) Renderiza o gráfico
 fig = circos.plotfig()
 plt.title(f"Gráfico Circos com Trilhas de Dispersão e Coordenadas Paralelas (Setores 1 a {num_dims})")
 plt.show()
