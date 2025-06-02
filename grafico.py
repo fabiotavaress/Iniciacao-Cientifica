@@ -37,7 +37,7 @@ for i in range(num_points):
 
 # --- Parte 3: plotagem no Circos ---
 
-sector_names = [f"Setor {i+1}" for i in range(num_dims)]
+sector_names = [f"{i+1}" for i in range(num_dims)]
 sector_angle = 360 / num_dims  # Ângulo por setor (40° para 9 dimensões)
 sectors = {name: sector_angle for name in sector_names}
 circos = Circos(sectors, space=5)
@@ -55,7 +55,7 @@ for i, sector in enumerate(circos.sectors):
     # Ticks baseados no intervalo real dos ângulos, em radianos, mapeados para o setor
     tick_angles = np.linspace(min_angle, max_angle, 5)  # 5 ticks no intervalo dos ângulos
     tick_positions = ((tick_angles - min_angle) / (max_angle - min_angle)) * sector_angle
-    tick_labels = [f"{x:.3f}" for x in tick_angles]  # Mostrar ângulos em radianos
+    tick_labels = [f"{x:.2f}" for x in tick_angles]  # Mostrar ângulos em radianos
     track.xticks(tick_positions, labels=tick_labels)
 
     track_height = 100 - 70  # Intervalo radial ajustado (30 unidades)
