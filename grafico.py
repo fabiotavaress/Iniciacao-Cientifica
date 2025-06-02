@@ -52,13 +52,19 @@ for i, sector in enumerate(circos.sectors):
     sector.text(sector.name, r=110, size=12)
     track = sector.add_track((70, 100), r_pad_ratio=0.1)  # Ampliar track_height para 30
     track.axis()
-    # Ticks baseados no intervalo real dos ângulos, em radianos, mapeados para o setor
+
+    # Ticks horizontais (ângulos, X-axis)
     tick_angles = np.linspace(min_angle, max_angle, 5)  # 5 ticks no intervalo dos ângulos
     tick_positions = ((tick_angles - min_angle) / (max_angle - min_angle)) * sector_angle
     tick_labels = [f"{x:.2f}" for x in tick_angles]  # Mostrar ângulos em radianos
     track.xticks(tick_positions, labels=tick_labels)
 
+    # Ticks verticais (normas, Y-axis)
     track_height = 100 - 70  # Intervalo radial ajustado (30 unidades)
+    norm_ticks = np.linspace(min_norm, max_norm, 5)  # 5 ticks no intervalo das normas
+    norm_tick_positions = ((norm_ticks - min_norm) / (max_norm - min_norm)) * track_height
+    norm_tick_labels = [f"{x:.2f}" for x in norm_ticks]  # Mostrar normas com 2 casas decimais
+    track.yticks(norm_tick_positions, norm_tick_labels, vmin=0, vmax=track_height, side="right", line_kws=dict(color="black", lw=1), text_kws=dict(color="black", size=10))
 
     idx = np.where(classification[:, 0] == i)[0]
     if len(idx) > 0:
