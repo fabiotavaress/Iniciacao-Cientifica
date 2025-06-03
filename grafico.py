@@ -43,8 +43,11 @@ sectors = {name: sector_angle for name in sector_names}
 circos = Circos(sectors, space=5)
 
 # Ajustar a escala com base nos valores reais
-min_angle = np.nanmin(min_angles)  # 0.9428 rad
-max_angle = np.nanmax(min_angles)  # 1.0583 rad
+# alteração dos limites corretos de variação do ângulo
+
+min_angle = 0
+max_angle = np.acos(1/np.sqrt(num_dims))
+
 min_norm = np.nanmin(norms)  # 11.6001
 max_norm = np.nanmax(norms)  # 12.9843
 
