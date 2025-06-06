@@ -29,7 +29,7 @@ for k in range(num_points):  # Agora as cores variam conforme os pontos (linhas 
     color = cmap(k / num_points)  # Definir cor baseada na linha do DataFrame
     for i in range(num_dims):  
         aux = (i + 1) % num_dims  # Conectar o último setor ao primeiro
-        circos.link_line((str(i+1), data.iloc[k, i]), (str(aux+1), data.iloc[k, aux]), lw=1, color=color)
+        circos.link_line((str(i+1), data.iloc[k, i]), (str(aux+1), data.iloc[k, aux]), lw=.3, color=color)
 
 # Gerar e mostrar o gráfico
 fig = circos.plotfig()
