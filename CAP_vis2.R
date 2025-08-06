@@ -6,9 +6,9 @@ library(circlize)
 
 # Read data ----
 #d1 <- read.csv("plano_4D.csv", header = FALSE)
-#d1 <- read.csv("wfg4_dwu-dec-r9.csv", header = FALSE)
+d1 <- read.csv("wfg4_dwu-dec.csv", header = FALSE)
 
-d1 <- read.csv("decision_NSGAII_0.csv", header = FALSE)
+#d1 <- read.csv("decision_NSGAII_0.csv", header = FALSE)
 #d1 <- read.csv("decision_DWU_0.csv", header = FALSE)
 
 d1$V1 <- NULL
