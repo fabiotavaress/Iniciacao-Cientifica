@@ -28,7 +28,6 @@ classification = np.column_stack((min_angle_indices, min_angles, norms))
 # --- Configuração do Circos ---
 min_value, max_value = data.min().min(), data.max().max()
 sector_names = [f"{i+1}" for i in range(num_dims)]
-# Usar o mesmo domínio (0..max_value) para os setores, garantindo que pontos e cordas compartilhem a mesma escala de X
 sectors = {name: max_value for name in sector_names}
 circos = Circos(sectors=sectors, space=5)
 
@@ -40,38 +39,40 @@ max_norm_val = np.nanmax(norms)
 
 for i, sector in enumerate(circos.sectors):
     sector.text(sector.name, r=110, size=12)
-    # Track para o diagrama de pontos (exterior)
     scatter_track = sector.add_track((70, 100), r_pad_ratio=0.1)
     scatter_track.axis()
+    scatter_track.xticks_by_interval(
+        interval=1, 
+        label_size=6, 
+        line_kws=dict(color="black"), 
+        label_formatter=lambda v: f"{v:.1f}"
+    )
 
     idx = np.where(classification[:, 0] == i)[0]
     if len(idx) > 0:
         x = classification[idx, 1]
         y = classification[idx, 2]
-
-        # Escalar X (ângulo mínimo) para 0..max_value (domínio do setor)
         x_scaled = ((x - min_angle_val) / (max_angle_val - min_angle_val)) * max_value
         x_scaled = np.clip(x_scaled, 0, max_value - 1e-9)
-
-        # Escalar Y (norma) para altura radial do track
         track_height = 100 - 70
         y_scaled = ((y - min_norm_val) / (max_norm_val - min_norm_val)) * track_height
-
-        # Jitter para melhor separação visual
         jitter_strength = 0.02 * max_value
         x_jitter = np.random.uniform(-jitter_strength, jitter_strength, size=len(x_scaled))
         y_jitter = np.random.uniform(-1.0, 1.0, size=len(y_scaled))
         x_scaled = np.clip(x_scaled + x_jitter, 0, max_value - 1e-9)
         y_scaled = np.clip(y_scaled + y_jitter, 0, track_height)
-
         scatter_track.scatter(x_scaled, y_scaled, s=8, color="blue", marker="o", alpha=0.5)
 
 # --- Parte 3: Lógica do Diagrama de Cordas (interior) ---
 for sector in circos.sectors:
-    chord_track = sector.add_track((50, 65))  # Posição interior
-    # Removendo chord_track.axis() e chord_track.xticks_by_interval para ocultar os setores internos
-    # chord_track.axis()
-    # chord_track.xticks_by_interval(interval=1, label_size=6)
+    chord_track = sector.add_track((50, 65))
+    # Não chamar chord_track.axis() para evitar desenhar o retângulo de fundo
+    chord_track.xticks_by_interval(
+        interval=1, 
+        label_size=6, 
+        line_kws=dict(color="black"), 
+        label_formatter=lambda v: f"{v:.1f}"
+    )
 
 # Criar as conexões (cordas)
 for k in range(num_points):
@@ -81,5 +82,4 @@ for k in range(num_points):
 
 # --- Finalização ---
 fig = circos.plotfig()
-plt.savefig("combined_plot.png", dpi=200, bbox_inches="tight")
-# plt.show()  # opcional em ambientes interativos
+plt.savefig("combined_plot_no_chord_sectors.png", dpi=200, bbox_inches="tight")
