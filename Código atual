@@ -3,15 +3,13 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from pycirclize import Circos
 
-# --- Parte 1: cálculo da norma e ângulos ---
-
+# --- Carregar e processar dados (comum a ambos os gráficos) ---
 data = pd.read_csv("wfg4_dwu-dec.csv", header=None)
 points = data.values
-
 num_points, num_dims = points.shape
 
+# --- Parte 1: Lógica do Diagrama de Pontos (cálculo da norma e ângulos) ---
 result_matrix = np.zeros((num_points, num_dims + 1))
-
 for i in range(num_points):
     point = points[i]
     norm = np.linalg.norm(point)
@@ -21,72 +19,67 @@ for i in range(num_points):
     else:
         result_matrix[i, 1:] = np.nan
 
-# --- Parte 2: construir matriz com menor ângulo e índice ---
-
-angles = result_matrix[:, 1:]  # ângulos
+angles = result_matrix[:, 1:]
 min_angle_indices = np.nanargmin(angles, axis=1)
 min_angles = angles[np.arange(num_points), min_angle_indices]
 norms = result_matrix[:, 0]
-
 classification = np.column_stack((min_angle_indices, min_angles, norms))
 
-# Imprimir a matriz classification para cada ponto
-print("Matriz Classification (Índice do menor ângulo, Menor ângulo, Norma):")
-for i in range(num_points):
-    print(f"Ponto {i+1}: Índice={int(classification[i, 0])}, Ângulo={classification[i, 1]:.4f}, Norma={classification[i, 2]:.4f}")
-
-# --- Parte 3: plotagem no Circos ---
-
+# --- Configuração do Circos ---
+min_value, max_value = data.min().min(), data.max().max()
 sector_names = [f"{i+1}" for i in range(num_dims)]
-sector_angle = 360 / num_dims  # Ângulo por setor (40° para 9 dimensões)
-sectors = {name: sector_angle for name in sector_names}
-circos = Circos(sectors, space=5)
+# Usar o mesmo domínio (0..max_value) para os setores, garantindo que pontos e cordas compartilhem a mesma escala de X
+sectors = {name: max_value for name in sector_names}
+circos = Circos(sectors=sectors, space=5)
 
-# Ajustar a escala com base nos valores reais
-min_angle = np.nanmin(min_angles)  # 0.9428 rad
-max_angle = np.nanmax(min_angles)  # 1.0583 rad
-min_norm = np.nanmin(norms)  # 11.6001
-max_norm = np.nanmax(norms)  # 12.9843
+# --- Parte 2: Plotagem do Diagrama de Pontos (exterior) ---
+min_angle_val = np.nanmin(min_angles)
+max_angle_val = np.nanmax(min_angles)
+min_norm_val = np.nanmin(norms)
+max_norm_val = np.nanmax(norms)
 
 for i, sector in enumerate(circos.sectors):
     sector.text(sector.name, r=110, size=12)
-    track = sector.add_track((70, 100), r_pad_ratio=0.1)  # Ampliar track_height para 30
-    track.axis()
-
-    # Ticks horizontais (ângulos, X-axis)
-    tick_angles = np.linspace(min_angle, max_angle, 5)  # 5 ticks no intervalo dos ângulos
-    tick_positions = ((tick_angles - min_angle) / (max_angle - min_angle)) * sector_angle
-    tick_labels = [f"{x:.2f}" for x in tick_angles]  # Mostrar ângulos em radianos
-    track.xticks(tick_positions, labels=tick_labels)
-
-    # Ticks verticais (normas, Y-axis)
-    track_height = 100 - 70  # Intervalo radial ajustado (30 unidades)
-    norm_ticks = np.linspace(min_norm, max_norm, 5)  # 5 ticks no intervalo das normas
-    norm_tick_positions = ((norm_ticks - min_norm) / (max_norm - min_norm)) * track_height
-    norm_tick_labels = [f"{x:.2f}" for x in norm_ticks]  # Mostrar normas com 2 casas decimais
-    track.yticks(norm_tick_positions, norm_tick_labels, vmin=0, vmax=track_height, side="right", line_kws=dict(color="black", lw=1), text_kws=dict(color="black", size=10))
+    # Track para o diagrama de pontos (exterior)
+    scatter_track = sector.add_track((70, 100), r_pad_ratio=0.1)
+    scatter_track.axis()
 
     idx = np.where(classification[:, 0] == i)[0]
     if len(idx) > 0:
-        x = classification[idx, 1]  # Menor ângulo
-        y = classification[idx, 2]  # Norma
+        x = classification[idx, 1]
+        y = classification[idx, 2]
 
-        # Escalar X para o intervalo do setor, baseado em [min_angle, max_angle]
-        x_scaled = ((x - min_angle) / (max_angle - min_angle)) * sector_angle
-        x_scaled = np.clip(x_scaled, 0, sector_angle - 1e-6)
+        # Escalar X (ângulo mínimo) para 0..max_value (domínio do setor)
+        x_scaled = ((x - min_angle_val) / (max_angle_val - min_angle_val)) * max_value
+        x_scaled = np.clip(x_scaled, 0, max_value - 1e-9)
 
-        # Escalar Y para o intervalo radial, baseado em [min_norm, max_norm]
-        y_scaled = ((y - min_norm) / (max_norm - min_norm)) * track_height
+        # Escalar Y (norma) para altura radial do track
+        track_height = 100 - 70
+        y_scaled = ((y - min_norm_val) / (max_norm_val - min_norm_val)) * track_height
 
-        # Aumentar jitter para melhor separação
-        jitter_strength = 0.1 * sector_angle  # Aumentado de 0.05 para 0.1
+        # Jitter para melhor separação visual
+        jitter_strength = 0.02 * max_value
         x_jitter = np.random.uniform(-jitter_strength, jitter_strength, size=len(x_scaled))
-        y_jitter = np.random.uniform(-1.0, 1.0, size=len(y_scaled))  # Aumentado de 0.5
-        x_scaled = np.clip(x_scaled + x_jitter, 0, sector_angle - 1e-6)
+        y_jitter = np.random.uniform(-1.0, 1.0, size=len(y_scaled))
+        x_scaled = np.clip(x_scaled + x_jitter, 0, max_value - 1e-9)
         y_scaled = np.clip(y_scaled + y_jitter, 0, track_height)
 
-        # Plotar com marcadores menores e transparência
-        track.scatter(x_scaled, y_scaled, s=8, color="blue", marker="o", alpha=0.5)
+        scatter_track.scatter(x_scaled, y_scaled, s=8, color="blue", marker="o", alpha=0.5)
 
+# --- Parte 3: Lógica do Diagrama de Cordas (interior) ---
+for sector in circos.sectors:
+    chord_track = sector.add_track((50, 65))  # Posição interior
+    # Removendo chord_track.axis() e chord_track.xticks_by_interval para ocultar os setores internos
+    # chord_track.axis()
+    # chord_track.xticks_by_interval(interval=1, label_size=6)
+
+# Criar as conexões (cordas)
+for k in range(num_points):
+    for i in range(num_dims):
+        aux = (i + 1) % num_dims
+        circos.link_line((str(i+1), data.iloc[k, i]), (str(aux+1), data.iloc[k, aux]), r1=50, r2=65, lw=.3, color='red')
+
+# --- Finalização ---
 fig = circos.plotfig()
-plt.show()
+plt.savefig("combined_plot.png", dpi=200, bbox_inches="tight")
+# plt.show()  # opcional em ambientes interativos
