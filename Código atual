@@ -5,7 +5,7 @@ from pycirclize import Circos
 
 # --- Utils ---
 def pretty_breaks(vmin: float, vmax: float, n: int = 5):
-    """Generate ~n aesthetically pleasing breaks similar to R's pretty()."""
+    """Gera ~n marcadores esteticamente agradáveis dentro do intervalo [vmin, vmax]."""
     if not np.isfinite(vmin) or not np.isfinite(vmax):
         return np.linspace(0.0, 1.0, n)
     if vmin == vmax:
@@ -22,28 +22,25 @@ def pretty_breaks(vmin: float, vmax: float, n: int = 5):
     mag = 10 ** np.floor(np.log10(raw))
     nice_steps = np.array([1, 2, 2.5, 5, 10]) * mag
     step = nice_steps[np.searchsorted(nice_steps, raw, side="left")]
-    # If raw larger than last nice_steps, bump one decade
     if step < raw:
         step *= 10
-    start = np.floor(vmin / step) * step
-    end = np.ceil(vmax / step) * step
-    ticks = np.arange(start, end + 0.5 * step, step)
-    # If too many ticks, downsample to n keeping ends
-    if len(ticks) > n:
-        # choose indices to get exactly n entries
-        idx = np.linspace(0, len(ticks) - 1, n).round().astype(int)
-        ticks = ticks[idx]
-    elif len(ticks) < n:
-        # fall back to linspace if necessary
+    start = np.ceil(vmin / step) * step
+    end = np.floor(vmax / step) * step
+    ticks = np.arange(start, end + step, step)
+    # Filtra os ticks para garantir que estejam dentro de [vmin, vmax]
+    ticks = ticks[(ticks >= vmin) & (ticks <= vmax)]
+    # Se não houver ticks suficientes, usa linspace como fallback
+    if len(ticks) < n:
         ticks = np.linspace(vmin, vmax, n)
     return ticks
 
-# --- Carregar e processar dados (comum a ambos os gráficos) ---
-data = pd.read_csv("wfg4_dwu-dec.csv", header=None)
+# --- Carregar e processar dados ---
+data = pd.read_csv("plano_4D.csv", header=None)
 points = data.values
 num_points, num_dims = points.shape
+min_value, max_value = data.min().min(), data.max().max()
 
-# --- Parte 1: Lógica do Diagrama de Pontos (cálculo da norma e ângulos) ---
+# --- Parte 1: Lógica do Diagrama de Pontos ---
 result_matrix = np.zeros((num_points, num_dims + 1))
 for i in range(num_points):
     point = points[i]
@@ -61,13 +58,9 @@ norms = result_matrix[:, 0]
 classification = np.column_stack((min_angle_indices, min_angles, norms))
 
 # --- Configuração do Circos ---
-# 1. Calcular max_angle
 max_angle = np.arccos(1 / np.sqrt(num_dims))
-
 sector_names = [f"{i+1}" for i in range(num_dims)]
-# 2. Definir cada setor com "largura" igual a esse max_angle
-sectors = {name: max_angle for name in sector_names}
-# Define spacing: large gap (30) between sector 9 and sector 1, smaller gap (5) elsewhere
+sectors = {name: max_value for name in sector_names}
 spaces = [5] * (num_dims - 1) + [30]
 circos = Circos(sectors=sectors, space=spaces)
 
@@ -82,16 +75,18 @@ for i, sector in enumerate(circos.sectors):
     scatter_track = sector.add_track((70, 100), r_pad_ratio=0.1)
     scatter_track.axis()
     
-    # 4. Nos ticks horizontais, escolha um intervalo uniforme de cerca de cinco divisões entre 0 e max_angle
+    # Ticks horizontais para o diagrama de pontos (baseado em max_angle)
     horizontal_tick_interval = max_angle / 5
-    scatter_track.xticks_by_interval(
-        interval=horizontal_tick_interval,
+    tick_values = np.arange(0, max_angle + horizontal_tick_interval / 2, horizontal_tick_interval)
+    tick_positions = (tick_values / max_angle) * max_value
+    scatter_track.xticks(
+        tick_positions,
+        [f"{v:.2f}" for v in tick_values],  # Mantém 2 casas decimais para o scatter
         label_size=6,
-        line_kws=dict(color="black"),
-        label_formatter=lambda v: f"{v:.2f}"
+        line_kws=dict(color="black")
     )
 
-    # Ticks verticais somente no setor 1, lado esquerdo, com ~5 "pretty" breaks em unidades de rho
+    # Ticks verticais somente no setor 1
     if sector.name == '1':
         y_ticks = pretty_breaks(float(min_norm_val), float(max_norm_val), n=5)
         scatter_track.yticks(
@@ -108,42 +103,42 @@ for i, sector in enumerate(circos.sectors):
     if len(idx) > 0:
         x = classification[idx, 1]
         y = classification[idx, 2]
-        # 3. Para posicionar os pontos no eixo X, use diretamente o ângulo bruto (já em radianos) e assegure-se de mantê-lo entre 0 e max_angle
-        x_scaled = np.clip(x, 0, max_angle - 1e-9) # Use o ângulo bruto e clipe para max_angle
-        
-        # y: mapeado linearmente para a altura do trilho, coerente com vmin/vmax acima
-        track_height = 100 - 70
+        x_scaled = (x / max_angle) * max_value
+        x_scaled = np.clip(x_scaled, 0, max_value - 1e-9)
+        track_height = 100 - 1
         y_scaled = ((y - min_norm_val) / (max_norm_val - min_norm_val)) * track_height
-        # jitter leve para evitar sobreposição
-        jitter_strength = 0.02 * max_angle # Ajustar jitter para max_angle
+        jitter_strength = 0.02 * max_angle
         x_jitter = np.random.uniform(-jitter_strength, jitter_strength, size=len(x_scaled))
         y_jitter = np.random.uniform(-1.0, 1.0, size=len(y_scaled))
-        x_scaled = np.clip(x_scaled + x_jitter, 0, max_angle - 1e-9) # Clipe para max_angle
+        x_scaled = np.clip(x_scaled + (x_jitter / max_angle) * max_value, 0, max_value - 1e-9)
         y_scaled = np.clip(y_scaled + y_jitter, 0, track_height)
         scatter_track.scatter(x_scaled, y_scaled, s=8, color="blue", marker="o", alpha=0.5)
 
 # --- Parte 3: Lógica do Diagrama de Cordas (interior) ---
 for sector in circos.sectors:
-    chord_track = sector.add_track((50, 65))
-    # 5. Ticks horizontais para o diagrama de cordas também
-    chord_track.xticks_by_interval(
-        interval=horizontal_tick_interval,
+    chord_track = sector.add_track((40, 55))  # Reduzido para aumentar o espaço
+    # Ticks horizontais para o diagrama de cordas usando pretty_breaks
+    chord_tick_positions = pretty_breaks(min(0, min_value), max_value, n=6)
+    chord_track.xticks(
+        chord_tick_positions,
+        [f"{v:.1f}" if v % 1 != 0 else f"{int(v)}" for v in chord_tick_positions],  # Inteiros quando possível, senão 1 casa decimal
         label_size=6,
-        line_kws=dict(color="black"),
-        label_formatter=lambda v: f"{v:.2f}"
+        line_kws=dict(color="black")
     )
 
-# Criar as conexões (cordas)
+# Criar as conexões (cordas) entre todas as combinações de dimensões para cada ponto
 for k in range(num_points):
-    for i in range(num_dims):
-        aux = (i + 1) % num_dims
-        # Mapear os valores de data.iloc[k, i] para o intervalo [0, max_angle]
-        # Assumindo que os valores de data.iloc[k, i] são positivos e precisam ser escalados
-        # para o novo range do setor (0 a max_angle)
-        scaled_data_i = (data.iloc[k, i] - data.min().min()) / (data.max().max() - data.min().min()) * max_angle
-        scaled_data_aux = (data.iloc[k, aux] - data.min().min()) / (data.max().max() - data.min().min()) * max_angle
-        circos.link_line((str(i+1), scaled_data_i), (str(aux+1), scaled_data_aux), r1=50, r2=65, lw=.3, color='red')
+    for j in range(num_dims - 1):
+        for m in range(j + 1, num_dims):
+            circos.link_line(
+                (str(j + 1), data.iloc[k, j]),
+                (str(m + 1), data.iloc[k, m]),
+                r1=55,  # Ajustado para a borda externa da trilha
+                r2=55,  # Ajustado para a borda externa da trilha
+                lw=0.3,
+                color='red'
+            )
 
 # --- Finalização ---
 fig = circos.plotfig()
-plt.savefig("combined_plot_no_chord_sectors.png", dpi=200, bbox_inches="tight")
+plt.savefig("combined_plot_integer_ticks_with_zero_scaled.png", dpi=200, bbox_inches="tight")
