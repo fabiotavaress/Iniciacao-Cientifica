@@ -3,6 +3,41 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from pycirclize import Circos
 
+# --- Utils ---
+def pretty_breaks(vmin: float, vmax: float, n: int = 5):
+    """Generate ~n aesthetically pleasing breaks similar to R's pretty()."""
+    if not np.isfinite(vmin) or not np.isfinite(vmax):
+        return np.linspace(0.0, 1.0, n)
+    if vmin == vmax:
+        if vmin == 0:
+            vmin, vmax = -1, 1
+        else:
+            vmin *= 0.9
+            vmax *= 1.1
+    if vmin > vmax:
+        vmin, vmax = vmax, vmin
+    raw = (vmax - vmin) / max(n - 1, 1)
+    if raw == 0:
+        raw = abs(vmax) if vmax != 0 else 1.0
+    mag = 10 ** np.floor(np.log10(raw))
+    nice_steps = np.array([1, 2, 2.5, 5, 10]) * mag
+    step = nice_steps[np.searchsorted(nice_steps, raw, side="left")]
+    # If raw larger than last nice_steps, bump one decade
+    if step < raw:
+        step *= 10
+    start = np.floor(vmin / step) * step
+    end = np.ceil(vmax / step) * step
+    ticks = np.arange(start, end + 0.5 * step, step)
+    # If too many ticks, downsample to n keeping ends
+    if len(ticks) > n:
+        # choose indices to get exactly n entries
+        idx = np.linspace(0, len(ticks) - 1, n).round().astype(int)
+        ticks = ticks[idx]
+    elif len(ticks) < n:
+        # fall back to linspace if necessary
+        ticks = np.linspace(vmin, vmax, n)
+    return ticks
+
 # --- Carregar e processar dados (comum a ambos os gráficos) ---
 data = pd.read_csv("wfg4_dwu-dec.csv", header=None)
 points = data.values
@@ -29,7 +64,9 @@ classification = np.column_stack((min_angle_indices, min_angles, norms))
 min_value, max_value = data.min().min(), data.max().max()
 sector_names = [f"{i+1}" for i in range(num_dims)]
 sectors = {name: max_value for name in sector_names}
-circos = Circos(sectors=sectors, space=5)
+# Define spacing: large gap (30) between sector 9 and sector 1, smaller gap (5) elsewhere
+spaces = [5] * (num_dims - 1) + [30]
+circos = Circos(sectors=sectors, space=spaces)
 
 # --- Parte 2: Plotagem do Diagrama de Pontos (exterior) ---
 min_angle_val = np.nanmin(min_angles)
@@ -42,20 +79,36 @@ for i, sector in enumerate(circos.sectors):
     scatter_track = sector.add_track((70, 100), r_pad_ratio=0.1)
     scatter_track.axis()
     scatter_track.xticks_by_interval(
-        interval=1, 
-        label_size=6, 
-        line_kws=dict(color="black"), 
+        interval=1,
+        label_size=6,
+        line_kws=dict(color="black"),
         label_formatter=lambda v: f"{v:.1f}"
     )
+
+    # Ticks verticais somente no setor 1, lado esquerdo, com ~5 "pretty" breaks em unidades de rho
+    if sector.name == '1':
+        y_ticks = pretty_breaks(float(min_norm_val), float(max_norm_val), n=5)
+        scatter_track.yticks(
+            y=y_ticks,
+            labels=[f"{v:.1f}" for v in y_ticks],
+            vmin=float(min_norm_val),
+            vmax=float(max_norm_val),
+            label_size=6,
+            line_kws=dict(color="black"),
+            side="left"
+        )
 
     idx = np.where(classification[:, 0] == i)[0]
     if len(idx) > 0:
         x = classification[idx, 1]
         y = classification[idx, 2]
+        # x: mapeado para [0, max_value]
         x_scaled = ((x - min_angle_val) / (max_angle_val - min_angle_val)) * max_value
         x_scaled = np.clip(x_scaled, 0, max_value - 1e-9)
+        # y: mapeado linearmente para a altura do trilho, coerente com vmin/vmax acima
         track_height = 100 - 70
         y_scaled = ((y - min_norm_val) / (max_norm_val - min_norm_val)) * track_height
+        # jitter leve para evitar sobreposição
         jitter_strength = 0.02 * max_value
         x_jitter = np.random.uniform(-jitter_strength, jitter_strength, size=len(x_scaled))
         y_jitter = np.random.uniform(-1.0, 1.0, size=len(y_scaled))
@@ -66,11 +119,10 @@ for i, sector in enumerate(circos.sectors):
 # --- Parte 3: Lógica do Diagrama de Cordas (interior) ---
 for sector in circos.sectors:
     chord_track = sector.add_track((50, 65))
-    # Não chamar chord_track.axis() para evitar desenhar o retângulo de fundo
     chord_track.xticks_by_interval(
-        interval=1, 
-        label_size=6, 
-        line_kws=dict(color="black"), 
+        interval=1,
+        label_size=6,
+        line_kws=dict(color="black"),
         label_formatter=lambda v: f"{v:.1f}"
     )
 
@@ -83,3 +135,5 @@ for k in range(num_points):
 # --- Finalização ---
 fig = circos.plotfig()
 plt.savefig("combined_plot_no_chord_sectors.png", dpi=200, bbox_inches="tight")
+
+
