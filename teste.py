@@ -105,7 +105,7 @@ for i, sector in enumerate(circos.sectors):
         y = classification[idx, 2]
         x_scaled = (x / max_angle) * max_value
         x_scaled = np.clip(x_scaled, 0, max_value - 1e-9)
-        track_height = 100 - 70
+        track_height = 100 - 1
         y_scaled = ((y - min_norm_val) / (max_norm_val - min_norm_val)) * track_height
         jitter_strength = 0.02 * max_angle
         x_jitter = np.random.uniform(-jitter_strength, jitter_strength, size=len(x_scaled))
@@ -116,7 +116,7 @@ for i, sector in enumerate(circos.sectors):
 
 # --- Parte 3: Lógica do Diagrama de Cordas (interior) ---
 for sector in circos.sectors:
-    chord_track = sector.add_track((50, 65))
+    chord_track = sector.add_track((40, 55))  # Reduzido para aumentar o espaço
     # Ticks horizontais para o diagrama de cordas (inteiros, incluindo 0)
     chord_tick_interval = max(1, int((max_value - min(0, min_value)) / 6))  # Dividir por 6 para ~6 ticks
     chord_tick_positions = np.arange(
@@ -140,12 +140,12 @@ for k in range(num_points):
         circos.link_line(
             (str(i+1), data.iloc[k, i]),
             (str(aux+1), data.iloc[k, aux]),
-            r1=50,
-            r2=65,
+            r1=40,  # Ajustado para o novo intervalo do chord track
+            r2=55,  # Ajustado para o novo intervalo do chord track
             lw=0.3,
             color='red'
         )
 
 # --- Finalização ---
 fig = circos.plotfig()
-plt.savefig("combined_plot_integer_ticks_with_zero.png", dpi=200, bbox_inches="tight")
+plt.savefig("combined_plot_integer_ticks_with_zero_scaled.png", dpi=200, bbox_inches="tight")
