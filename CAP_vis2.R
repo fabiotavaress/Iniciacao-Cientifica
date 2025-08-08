@@ -11,7 +11,7 @@ d1 <- read.csv("wfg4_dwu-dec.csv", header = FALSE)
 #d1 <- read.csv("decision_NSGAII_0.csv", header = FALSE)
 #d1 <- read.csv("decision_DWU_0.csv", header = FALSE)
 
-d1$V1 <- NULL
+
 
 npop_d1 <- nrow(d1) # population size
 nobj_d1 <- ncol(d1) # dimension
