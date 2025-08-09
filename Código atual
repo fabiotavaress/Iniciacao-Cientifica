@@ -35,7 +35,8 @@ def pretty_breaks(vmin: float, vmax: float, n: int = 5):
     return ticks
 
 # --- Carregar e processar dados ---
-data = pd.read_csv("plano_4D.csv", header=None)
+data = pd.read_csv("wfg4_dwu-dec.csv", header=None)
+#data = pd.read_csv("plano_4D.csv", header=None)
 points = data.values
 num_points, num_dims = points.shape
 min_value, max_value = data.min().min(), data.max().max()
@@ -61,7 +62,7 @@ classification = np.column_stack((min_angle_indices, min_angles, norms))
 max_angle = np.arccos(1 / np.sqrt(num_dims))
 sector_names = [f"{i+1}" for i in range(num_dims)]
 sectors = {name: max_value for name in sector_names}
-spaces = [5] * (num_dims - 1) + [30]
+spaces = [5] * (num_dims - 1) + [15]
 circos = Circos(sectors=sectors, space=spaces)
 
 # --- Parte 2: Plotagem do Diagrama de Pontos (exterior) ---
