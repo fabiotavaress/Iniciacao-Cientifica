@@ -105,7 +105,7 @@ def main():
     plot_chord_tracks(circos, data, min_value, max_value)
 
     fig = circos.plotfig()
-    filename = f"circos_plot_{num_dims}D_{num_points}pts.png"
+    filename = f"circos_plot_{num_dims}D_{num_points}pts.svg"
     plt.savefig(filename, format = "svg", bbox_inches="tight")
     logging.info(f"Figura salva como {filename}")
 
