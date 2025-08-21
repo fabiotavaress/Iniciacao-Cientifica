@@ -85,12 +85,18 @@ def plot_chord_tracks(circos: Circos, data: pd.DataFrame, min_value: float, max_
     for k in range(len(data)):
         for j in range(data.shape[1] - 1):
             for m in range(j + 1, data.shape[1]):
-                circos.link_line((str(j + 1), data.iloc[k, j]), (str(m + 1), data.iloc[k, m]), r1=55, r2=55, lw=0.3, color='red')
+                circos.link_line((str(j + 1), data.iloc[k, j]), (str(m + 1), data.iloc[k, m]), r1=55, r2=55, lw=0.3, color='blue')
 
 # --- Execução principal ---
 def main():
-    #data = pd.read_csv("wfg4_dwu-dec.csv", header=None)
-    data = pd.read_csv("plano_4D.csv", header=None)
+    
+    filename = "Iris-Virginica"
+    #filename = "plano_4D"
+    #filename = "wfg4_dwu-dec"
+    
+    file = filename + ".csv"
+    
+    data = pd.read_csv(file, header=None)
     points = data.values
     num_points, num_dims = points.shape
     min_value, max_value = data.min().min(), data.max().max()
@@ -105,9 +111,8 @@ def main():
     plot_chord_tracks(circos, data, min_value, max_value)
 
     fig = circos.plotfig()
-    filename = f"circos_plot_{num_dims}D_{num_points}pts.svg"
-    plt.savefig(filename, format = "svg", bbox_inches="tight")
-    logging.info(f"Figura salva como {filename}")
+    logging.info("Gráfico gerado com sucesso.")
+    plt.show()
 
 if __name__ == "__main__":
     main()
