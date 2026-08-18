@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# R
+.RData
+.Rhistory
+.Rproj.user/
+
+# Saídas / figuras geradas
+*.png
+*.pdf
+*.svg
+
+# SO
+.DS_Store
+Thumbs.db

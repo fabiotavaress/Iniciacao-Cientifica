@@ -22,7 +22,7 @@ Os experimentos usam instâncias clássicas de otimização multiobjetivo, como 
 |---|---|
 | `grafico_otimizado.py` | Versão principal (otimizada) em Python: gera o diagrama de corda com classificação angular das soluções. |
 | `chord_diagram_final.py` · `chord_diagram_color2.py` | Geração dos diagramas de corda a partir dos dados de otimização. |
-| `Código atual` | Versão de trabalho mais recente do script em Python. |
+| `codigo_atual.py` | Versão de trabalho mais recente do script em Python. |
 | `CAP_vis2.R` · `grafico.r` | Implementações equivalentes em **R** (biblioteca `circlize`) para chord diagram e mapeamento angular. |
 | `wfg4_dwu-dec.csv` · `plano_4D.csv` | Conjuntos de dados de soluções multiobjetivo (benchmark WFG4 e plano 4D). |
 | `Iris-*.csv` · `cartonn.csv` | Dados auxiliares para validação das visualizações. |
